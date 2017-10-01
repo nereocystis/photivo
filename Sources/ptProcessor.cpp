@@ -916,7 +916,7 @@ void ptProcessor::Run(short Phase,
           hFilter->runFilter(m_Image_AfterLabEyeCandy);
         }
 
-        
+
         //***************************************************************************
         // Colorcontrast
 
@@ -1379,9 +1379,17 @@ void ptProcessor::RunGeometry(ptProcessorStopBefore StopBefore) {
     LensData.AddCalibTCA(&TCAData);
     LensData.AddCalibVignetting(&VignetteData);
     LensData.AddCalibDistortion(&DistortionData);
+
+#if LF_VERSION >= (3 << 16)
+    LensData.CropFactor = 1.0f;
+    LensData.AspectRatio =
+            static_cast<float>(m_Image_AfterGeometry->m_Width) / m_Image_AfterGeometry->m_Height;
+#endif
+
+    LensData.GuessParameters();
     assert(LensData.Check());
     lfModifier* LfunData = lfModifier::Create(&LensData,
-                                              1.0,  // focal length always normalised to 35mm equiv.
+                                              1.0f,  // focal length always normalised to 35mm equiv
                                               m_Image_AfterGeometry->m_Width,
                                               m_Image_AfterGeometry->m_Height);
 
@@ -1434,9 +1442,17 @@ void ptProcessor::RunGeometry(ptProcessorStopBefore StopBefore) {
     LensData.SetMaker("Photivo Custom");
     LensData.SetModel("Photivo Custom");
     LensData.AddMount("Photivo Custom");
+
+#if LF_VERSION >= (3 << 16)
+    LensData.CropFactor = 1.0f;
+    LensData.AspectRatio =
+            static_cast<float>(m_Image_AfterGeometry->m_Width) / m_Image_AfterGeometry->m_Height;
+#endif
+
+    LensData.GuessParameters();
     assert(LensData.Check());
     lfModifier* LfunData = lfModifier::Create(&LensData,
-                                              1.0,  // focal length always normalised to 35mm equiv.
+                                              1.0f,  // focal length always normalised to 35mm equiv
                                               m_Image_AfterGeometry->m_Width,
                                               m_Image_AfterGeometry->m_Height);
 
