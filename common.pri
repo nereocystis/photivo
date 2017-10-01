@@ -7,6 +7,12 @@ INCLUDEPATH += $${_PRO_FILE_PWD_}/../Sources $$(INCLUDEPATHS)
 INCLUDEPATH += /usr/include/lensfun
 
 QMAKE_CXXFLAGS += -fopenmp
-QMAKE_LFLAGS += -fopenmp=libiomp5
+
+contains(QMAKE_COMPILER, clang) {
+    QMAKE_LFLAGS += -fopenmp=libiomp5
+}
+else {
+    QMAKE_LFLAGS += -fopenmp-simd
+}
 
 LIBS += -lraw
