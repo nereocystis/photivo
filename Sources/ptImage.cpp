@@ -1167,14 +1167,14 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
   if (ProfileType == ptCameraColor::Adobe_Matrix) {
     // Matrix for conversion RGB to RGB : is a multiplication via XYZ
     double MatrixRGBToRGB[3][3];
-    for(short i=0;i<3;i++) {
-      for (short j=0;j<3;j++) {
+    for (short i = 0; i < 3; i++) {
+      for (short j = 0; j < 3; j++) {
         MatrixRGBToRGB[i][j] = 0.0;
-        for (short k=0;k<3;k++) {
+        for (short k = 0; k < 3; k++) {
           MatrixRGBToRGB[i][j] +=
-            MatrixXYZToRGB[TargetSpace][i][k] *
-            // Yes dcraw assumes that the result of rgb_cam is in sRGB !
-            MatrixRGBToXYZ[ptSpace_sRGB_D65][k][j];
+              MatrixXYZToRGB[TargetSpace][i][k] *
+              // Yes dcraw assumes that the result of rgb_cam is in sRGB !
+              MatrixRGBToXYZ[ptSpace_sRGB_D65][k][j];
         }
       }
     }
@@ -1182,32 +1182,32 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
     // We just need to add the correct matrix calculation with rgb_cam
     // Be attentive : we still can have 4 channels at this moment !
     double Matrix[3][4];
-    for(short i=0;i<3;i++) {
-      for (short j=0;j<DcRawObject->m_Colors;j++) {
+    for (short i = 0; i < 3; i++) {
+      for (short j = 0; j < DcRawObject->m_Colors; j++) {
         Matrix[i][j] = 0.0;
-        for (short k=0;k<3;k++) {
+        for (short k = 0; k < 3; k++) {
           Matrix[i][j] +=
-            MatrixRGBToRGB[i][k] * DcRawObject->m_MatrixCamRGBToSRGB[k][j];
+              MatrixRGBToRGB[i][k] * DcRawObject->m_MatrixCamRGBToSRGB[k][j];
         }
       }
     }
 
-    // Convert the image.
+      // Convert the image.
 #pragma omp parallel for
-    for (uint32_t i=0; i<(uint32_t)m_Height*m_Width; i++) {
+    for (uint32_t i = 0; i < (uint32_t)m_Height * m_Width; i++) {
       int32_t Value[3];
-      for (short c=0; c<3; c++) {
+      for (short c = 0; c < 3; c++) {
         Value[c] = 0;
-        for (short k=0; k<DcRawObject->m_Colors; k++) {
-          Value[c] += (int32_t) (Matrix[c][k]*DcRawObject->m_Image[i][k]);
+        for (short k = 0; k < DcRawObject->m_Colors; k++) {
+          Value[c] += (int32_t)(Matrix[c][k] * DcRawObject->m_Image[i][k]);
         }
       }
-      for (short c=0; c<3; c++) {
-        PreFlip[i][c] = (uint16_t) CLIP(Value[c]);
+      for (short c = 0; c < 3; c++) {
+        PreFlip[i][c] = (uint16_t)CLIP(Value[c]);
       }
     }
 
-    m_Colors = MIN((int)(DcRawObject->m_Colors),3);
+    m_Colors = MIN((int)(DcRawObject->m_Colors), 3);
     m_ColorSpace = TargetSpace;
 
     if (m_Colors != 3) {
@@ -1219,8 +1219,8 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
               "further.\n");
       assert(0);
     }
-  }// (if !ProfileName)
-  else if (ProfileType != ptCameraColor::Adobe_Matrix) {
+  } // (if !ProfileName)
+  else {
     m_Colors = MIN((int)(DcRawObject->m_Colors),3);
     m_ColorSpace = TargetSpace;
 
@@ -1235,7 +1235,7 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
     }
 
     std::vector<cmsHPROFILE> Profiles;
-    finally f([&] {
+    finally ProfilesCleanUp([&] {
       for (auto &profile : Profiles) {
         if (profile) {
           cmsCloseProfile(profile);
@@ -1287,7 +1287,7 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
 
     // Linear gamma.
     cmsToneCurve *Gamma = cmsBuildGamma(NULL, 1.0);
-    finally GammaCleanUP([&] { cmsFreeToneCurve(Gamma); });
+    finally GammaCleanUp([&] { cmsFreeToneCurve(Gamma); });
     cmsToneCurve *Gamma3[3];
     Gamma3[0] = Gamma3[1] = Gamma3[2] = Gamma;
 
@@ -1316,7 +1316,7 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
     cmsHTRANSFORM Transform;
     Transform = cmsCreateMultiprofileTransform(
         Profiles.data(), Profiles.size(), TYPE_RGBA_16, TYPE_RGB_16, Intent, 0);
-    finally TransformCleanUP([&] { cmsDeleteTransform(Transform); });
+    finally TransformCleanUp([&] { cmsDeleteTransform(Transform); });
 
     int32_t Size = m_Width*m_Height;
     int32_t Step = 100000;
