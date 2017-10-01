@@ -259,7 +259,7 @@ void ptProcessor::Run(short Phase,
               TRACEMAIN("Opened RAW at %d ms.",
                         FRunTimer.elapsed());
 
-            case ptProcessorPhase_Demosaic :
+            case ptProcessorPhase_Demosaic:
 
               m_ReportProgress(tr("Demosaicing"));
 
@@ -269,101 +269,64 @@ void ptProcessor::Run(short Phase,
               TRACEMAIN("Done Color Scaling and Interpolation at %d ms.",
                         FRunTimer.elapsed());
 
-            case ptProcessorPhase_Highlights :
+            case ptProcessorPhase_Highlights: {
 
               m_ReportProgress(tr("Recovering highlights"));
 
               // Settings->GetInt("JobMode") causes NoCache
               m_DcRaw->RunDcRaw_Phase3(Settings->GetInt("JobMode"));
 
-              TRACEMAIN("Done Highlights at %d ms.",FRunTimer.elapsed());
+              TRACEMAIN("Done Highlights at %d ms.", FRunTimer.elapsed());
 
-              // Already here we want the output profile.
-              // It will be applied, not in the pipe but on a
-              // tee for preview reasons.
-              // Find the output profile if we are in that mode.
-              if (Settings->GetInt("CameraColor") == ptCameraColor_Adobe_Profile) {
-                QString Identification = m_DcRaw->m_CameraAdobeIdentification;
-                for (int i=0;i<Identification.size();i++) {
-                  if (Identification[i].isSpace()) Identification[i]='_';
-                  // Some contain '*' which is problem under Windows.
-                  if (Identification[i] == '*') Identification[i]='_';
+              // Already here we want the output profile. It will be applied,
+              // not in the pipe but on a tee for preview reasons.
+              const auto CameraColor =
+                  enum_cast<ptCameraColor>(Settings->GetInt("CameraColor"));
+              switch (CameraColor) {
+              case ptCameraColor::Adobe_Profile:
+              case ptCameraColor::Flat:
+              case ptCameraColor::Adobe_Matrix:
+                break; // nothing to do
+              case ptCameraColor::Profile: {
+                CameraProfileName = Settings->GetString("CameraColorProfile");
+                QFileInfo PathInfo(CameraProfileName);
+                if (!(PathInfo.exists() && PathInfo.isFile() &&
+                      PathInfo.isReadable())) {
+                  ptMessageBox::information(
+                      0, tr("Profile not found"),
+                      tr("Profile not found. Reverting to Adobe Matrix.\nYou "
+                         "could try an external profile."));
+                  TRACEMAIN("Not found profile at %d ms.", FRunTimer.elapsed());
+                  Settings->SetValue("CameraColor",
+                                     value(ptCameraColor::Adobe_Matrix));
                 }
-                QString InputFileName;
-                InputFileName =
-                  Settings->GetString("StandardAdobeProfilesDirectory");
-                InputFileName += "/";
-                InputFileName += Identification;
-                InputFileName += ".icc";
-                QFileInfo PathInfo(InputFileName);
-                if (PathInfo.exists() &&
-                    PathInfo.isFile() &&
-                    PathInfo.isReadable()) {
-                  CameraProfileName = PathInfo.absoluteFilePath();
-                  Settings->SetValue("CameraColorProfile",CameraProfileName);
-                  TRACEKEYVALS("Found adobe profile","%s",
-                               CameraProfileName.toLocal8Bit().data());
-                  TRACEMAIN("Found profile at %d ms.",FRunTimer.elapsed());
-                } else {
-                  ptMessageBox::information(0,
-                            tr("Profile not found"),
-                            tr("Profile not found. Reverting to Adobe Matrix.\nYou could try an external profile."));
-                  TRACEMAIN("Not found profile at %d ms.",FRunTimer.elapsed());
-                  Settings->SetValue("CameraColor",ptCameraColor_Adobe_Matrix);
-                }
-              } else if (Settings->GetInt("CameraColor") == ptCameraColor_Profile) {
-                  CameraProfileName = Settings->GetString("CameraColorProfile");
-                  QFileInfo PathInfo(CameraProfileName);
-                  if (!(PathInfo.exists() &&
-                        PathInfo.isFile() &&
-                        PathInfo.isReadable())) {
-                    ptMessageBox::information(0,
-                              tr("Profile not found"),
-                              tr("Profile not found. Reverting to Adobe Matrix.\nYou could try an external profile."));
-                    TRACEMAIN("Not found profile at %d ms.",FRunTimer.elapsed());
-                    Settings->SetValue("CameraColor",ptCameraColor_Adobe_Matrix);
-                  }
-              } else if (Settings->GetInt("CameraColor") == ptCameraColor_Flat) {
-                QString InputFileName;
-                InputFileName = Settings->GetString("UserDirectory");
-                // hard coded, other paths may be altered by user
-                InputFileName += "/Profiles/Camera/Flat/FlatProfile.icc";
-                QFileInfo PathInfo(InputFileName);
-                if (PathInfo.exists() &&
-                    PathInfo.isFile() &&
-                    PathInfo.isReadable()) {
-                  CameraProfileName = PathInfo.absoluteFilePath();
-                  Settings->SetValue("CameraColorProfile",CameraProfileName);
-                  TRACEMAIN("Found profile at %d ms.",FRunTimer.elapsed());
-                } else {
-                  TRACEMAIN("Not found profile at %d ms.",FRunTimer.elapsed());
-                  printf("profile %s\n\n",InputFileName.toLocal8Bit().data());
-                  Settings->SetValue("CameraColor",ptCameraColor_Adobe_Matrix);
-                }
+              } break;
+              case ptCameraColor::Embedded:
+                assert(!"Camera profile setting ptCameraColor::Embedded not "
+                        "yet implemented!");
               }
 
               // We're at the end of the DcRaw part now and capture
               // the image that DcRaw made for us.
-              if (!m_Image_AfterDcRaw) m_Image_AfterDcRaw = new ptImage();
+              if (!m_Image_AfterDcRaw)
+                m_Image_AfterDcRaw = new ptImage();
 
               // Transfer dcraw output to an image, maybe applying a profile
               // and a preprofile.
 
               m_Image_AfterDcRaw->Set(
-                m_DcRaw,
-                Settings->GetInt("WorkColor"),
-                (Settings->GetInt("CameraColor") == ptCameraColor_Adobe_Matrix) ?
-                  NULL : CameraProfileName.toLocal8Bit().data(),
-                Settings->GetInt("CameraColorProfileIntent"),
-                Settings->GetInt("CameraColorGamma"));
+                  m_DcRaw, Settings->GetInt("WorkColor"), CameraColor,
+                  CameraProfileName,
+                  Settings->GetInt("CameraColorProfileIntent"),
+                  enum_cast<ptCameraColorGamma>(Settings->GetInt("CameraColorGamma")));
 
               Settings->FromDcRaw(m_DcRaw);
 
               TRACEMAIN("Done m_Image_AfterDcRaw transfer to GUI at %d ms.",
-                         FRunTimer.elapsed());
+                        FRunTimer.elapsed());
 
-              break;
-            default : // Should not happen.
+            } break;
+            default: // Should not happen.
               GInfo->Raise(QString("Processor subphase ") + QString::number(SubPhase) + QString(" does not exist."), AT);
           }
         }

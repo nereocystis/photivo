@@ -35,6 +35,7 @@
 #include "ptConstants.h"
 #include "ptRefocusMatrix.h"
 #include "ptCimg.h"
+#include "ptColorProfiles.h"
 #include "fastbilateral/fast_lbf.h"
 
 #include <QString>
@@ -1146,11 +1147,12 @@ void ptImage::clear() {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
-                      const short   TargetSpace,
-                      const char*   ProfileName,
-                      const int     Intent,
-                      const int     ProfileGamma) {
+ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
+                      const short              TargetSpace,
+                      const ptCameraColor      ProfileType,
+                      const QString           &ProfileName,
+                      const int                Intent,
+                      const ptCameraColorGamma ProfileGamma) {
 
   assert(NULL != DcRawObject);
   assert ((TargetSpace>0) && (TargetSpace<5));
@@ -1162,7 +1164,7 @@ ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
   TImage16Data PreFlip;
   PreFlip.resize((size_t)m_Width*m_Height);
 
-  if (!ProfileName) {
+  if (ProfileType == ptCameraColor::Adobe_Matrix) {
     // Matrix for conversion RGB to RGB : is a multiplication via XYZ
     double MatrixRGBToRGB[3][3];
     for(short i=0;i<3;i++) {
@@ -1218,8 +1220,7 @@ ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
       assert(0);
     }
   }// (if !ProfileName)
-  else if (ProfileName) {
-
+  else if (ProfileType != ptCameraColor::Adobe_Matrix) {
     m_Colors = MIN((int)(DcRawObject->m_Colors),3);
     m_ColorSpace = TargetSpace;
 
@@ -1233,71 +1234,61 @@ ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
       assert(0);
     }
 
-    short NrProfiles = (ProfileGamma) ? 3:2;
-    cmsHPROFILE Profiles[NrProfiles];
-    short ProfileIdx = 0;
-    if (ProfileGamma) {
-      cmsHPROFILE  PreProfile = 0;
-      double Params[6];
-      switch(ProfileGamma) {
-        case ptCameraColorGamma_sRGB :
-          // Parameters for standard (inverse) sRGB in lcms
-          Params[0] = 1.0/2.4;
-          Params[1] = 1.1371189;
-          Params[2] = 0.0;
-          Params[3] = 12.92;
-          Params[4] = 0.0031308;
-          Params[5] = -0.055;
-          break;
-        case ptCameraColorGamma_BT709 :
-          // Parameters for standard (inverse) BT709 in lcms
-          Params[0] = 0.45;
-          Params[1] = 1.233405791;
-          Params[2] = 0.0;
-          Params[3] = 4.5;
-          Params[4] = 0.018;
-          Params[5] = -0.099;
-          break;
-        case ptCameraColorGamma_Pure22 :
-          // Parameters for standard (inverse) 2.2 gamma in lcms
-          Params[0] = 1.0/2.2;
-          Params[1] = 1.0;
-          Params[2] = 0.0;
-          Params[3] = 0.0;
-          Params[4] = 0.0;
-          Params[5] = 0.0;
-          break;
-        default:
-          assert(0);
+    std::vector<cmsHPROFILE> Profiles;
+    finally f([&] {
+      for (auto &profile : Profiles) {
+        if (profile) {
+          cmsCloseProfile(profile);
+        }
       }
-      cmsToneCurve* Gamma = cmsBuildParametricToneCurve(0,4,Params);
-      cmsToneCurve* Gamma4[4];
-      Gamma4[0] = Gamma4[1] = Gamma4[2] = Gamma4[3]= Gamma;
-      PreProfile = cmsCreateLinearizationDeviceLink(cmsSigRgbData,Gamma4);
-      Profiles[ProfileIdx] = PreProfile;
-      if (!Profiles[ProfileIdx]) {
-        ptLogError(ptError_Profile,"Could not open sRGB preprofile.");
-        return NULL;
+    });
+    auto addProfile = [&](cmsHPROFILE &&profile, const QString &error_msg) -> bool {
+      if (profile) {
+        Profiles.push_back(profile);
+        return true;
+      } else {
+        ptLogError(ptError_Profile, "%s", error_msg.toLocal8Bit().data());
+        return false;
       }
-      ProfileIdx++;
-      cmsFreeToneCurve(Gamma);
+    };
+
+    if (ProfileGamma != ptCameraColorGamma::None &&
+        (ProfileType == ptCameraColor::Flat ||
+         ProfileType == ptCameraColor::Profile)) {
+      Profiles.push_back(pt::createGammaProfile(ProfileGamma));
     }
 
-    Profiles[ProfileIdx] = cmsOpenProfileFromFile(ProfileName,"r");
-    if (!Profiles[ProfileIdx]) {
-      ptLogError(ptError_Profile,"Could not open profile %s.",ProfileName);
-      for (; ProfileIdx>=0; ProfileIdx--) {
-        cmsCloseProfile(Profiles[ProfileIdx]);
+    switch (ProfileType) {
+    case ptCameraColor::Adobe_Matrix:
+      assert(0); // we are in a profile branch
+    case ptCameraColor::Adobe_Profile:
+      if (!addProfile(
+              pt::createAdobeProfile(DcRawObject->imgdata.color.cam_xyz),
+              "Could not create Adobe profile!")) {
+        return NULL;
       }
-      return NULL;
+      break;
+    case ptCameraColor::Embedded:
+      assert(0);
+    case ptCameraColor::Flat:
+      Profiles.push_back(pt::createFlatProfile());
+      break;
+    case ptCameraColor::Profile:
+      Q_ASSERT(!ProfileName.isEmpty());
+      if (!addProfile(
+              cmsOpenProfileFromFile(ProfileName.toLocal8Bit().data(), "r"),
+              QString("Could not open profile %1.").arg(ProfileName))) {
+        return NULL;
+      }
+      break;
     }
-    ProfileIdx++;
 
     // Calculate the output profile (with gamma 1)
 
     // Linear gamma.
-    cmsToneCurve* Gamma = cmsBuildGamma(NULL, 1.0);
-    cmsToneCurve* Gamma3[3];
+    cmsToneCurve *Gamma = cmsBuildGamma(NULL, 1.0);
+    finally GammaCleanUP([&] { cmsFreeToneCurve(Gamma); });
+    cmsToneCurve *Gamma3[3];
     Gamma3[0] = Gamma3[1] = Gamma3[2] = Gamma;
 
     cmsCIExyY  DToReference;
@@ -1315,28 +1306,18 @@ ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
         assert(0);
     }
 
-    Profiles[ProfileIdx] =
-      cmsCreateRGBProfile(&DToReference,
-                          (cmsCIExyYTRIPLE*)
-                          &RGBPrimaries[TargetSpace],
-                          Gamma3);
-    if (!Profiles[ProfileIdx]) {
-      ptLogError(ptError_Profile,"Could not open OutProfile profile.");
-      for (; ProfileIdx>=0; ProfileIdx--) {
-        cmsCloseProfile(Profiles[ProfileIdx]);
-      }
+    if (!addProfile(cmsCreateRGBProfile(
+                        &DToReference,
+                        (cmsCIExyYTRIPLE *)&RGBPrimaries[TargetSpace], Gamma3),
+                    "Could not open OutProfile profile.")) {
       return NULL;
     }
 
-    cmsFreeToneCurve(Gamma);
-
     cmsHTRANSFORM Transform;
-    Transform = cmsCreateMultiprofileTransform(Profiles,
-                                               NrProfiles,
-                                               TYPE_RGBA_16,
-                                               TYPE_RGB_16,
-                                               Intent,
-                                               0);
+    Transform = cmsCreateMultiprofileTransform(
+        Profiles.data(), Profiles.size(), TYPE_RGBA_16, TYPE_RGB_16, Intent, 0);
+    finally TransformCleanUP([&] { cmsDeleteTransform(Transform); });
+
     int32_t Size = m_Width*m_Height;
     int32_t Step = 100000;
 #pragma omp parallel for schedule(static)
@@ -1345,11 +1326,7 @@ ptImage* ptImage::Set(const ptDcRaw*  DcRawObject,
       uint16_t* Tile1 = &(DcRawObject->m_Image[i][0]);
       uint16_t* Tile2 = &(PreFlip[i][0]);
       cmsDoTransform(Transform,Tile1,Tile2,Length);
-    }
-    cmsDeleteTransform(Transform);
-    for (; ProfileIdx>=0; ProfileIdx--) {
-      cmsCloseProfile(Profiles[ProfileIdx]);
-    }
+    }    
   }
 
   uint16_t TargetWidth  = m_Width;

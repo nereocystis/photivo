@@ -89,11 +89,7 @@ unix {
 #------------------------------------------------------------------------------
 #--- Compiler and linker configuration ---
 
-# * Add path to sources folder to the include search paths.
-#   Necessary for GCC to find the .h files of (in Designer) promoted widgets.
-#   When you promote widgets you must specify the .h relative to the "Sources" folder.
-# * Pull in additional include paths from the custom INCLUDEPATHS environment variable.
-INCLUDEPATH += $${_PRO_FILE_PWD_}/../Sources $$(INCLUDEPATHS)
+include(../common.pri)
 
 # The APPVERSION string has a space in it, i.e. it cannot go into DEFINES
 COMPILERFLAGS_ALL = -ffast-math -DAPPVERSION=\"$${APPVERSION}\"
@@ -101,7 +97,7 @@ COMPILERFLAGS_ALL = -ffast-math -DAPPVERSION=\"$${APPVERSION}\"
 # Flags from the environment must be pulled in explicitely like this appended them
 # at the end of the flags. Needed to ensure that user-settings from the environment
 # have the highest priority and are not overwritten by default from QMake.
-QMAKE_CXXFLAGS_RELEASE += -funroll-loops -ftree-vectorize -fopenmp $$(CXXFLAGS)
+QMAKE_CXXFLAGS_RELEASE += -funroll-loops -ftree-vectorize $$(CXXFLAGS)
 QMAKE_CFLAGS_RELEASE   += $$(CFLAGS)
 QMAKE_LFLAGS_RELEASE   += $$(LDFLAGS)
 QMAKE_CXXFLAGS_DEBUG   += $$(CXXFLAGS)
@@ -234,11 +230,11 @@ HEADERS += \
     ../Sources/ptStorable.h \
     ../Sources/greyc/CImg.h \
     ../Sources/ptAbstractInteraction.h \
-    ../Sources/ptAdobeTable.h \
     ../Sources/ptCalloc.h \
     ../Sources/ptCheck.h \
     ../Sources/ptChoice.h \
     ../Sources/ptCimg.h \
+    ../Sources/ptColorProfiles.h \
     ../Sources/ptConfirmRequest.h \
     ../Sources/ptConstants.h \
     ../Sources/ptCurve.h \
@@ -262,6 +258,7 @@ HEADERS += \
     ../Sources/ptMessageBox.h \
     ../Sources/ptParseCli.h \
     ../Sources/ptProcessor.h \
+    ../Sources/ptRawWrapper.h \
     ../Sources/ptReportOverlay.h \
     ../Sources/ptResizeFilters.h \
     ../Sources/ptRGBTemperature.h \
@@ -412,6 +409,7 @@ SOURCES += \
     ../Sources/ptMessageBox.cpp \
     ../Sources/ptParseCli.cpp \
     ../Sources/ptProcessor.cpp \
+    ../Sources/ptRawWrapper.cpp \
     ../Sources/ptReportOverlay.cpp \
     ../Sources/ptResizeFilters.cpp \
     ../Sources/ptRGBTemperature.cpp \

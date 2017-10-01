@@ -140,9 +140,9 @@ ptSettings::ptSettings(const short InitLevel, const QString Path) {
     // Unique Name          GuiElement,InitLevel,InJobFile,HasDefault, Default            Choices (from ptGuiOptions.h),         ToolTip
     {"BatchMgrAutosaveFile"        ,ptGT_Choice       ,1,0,0 ,bsfStandard                 ,GuiOptions->BatchMgrAutosaveFile      ,tr("File for autosaving batch list")},
     {"RememberSettingLevel"        ,ptGT_Choice       ,1,0,0 ,2                           ,GuiOptions->RememberSettingLevel      ,tr("Remember setting level")},
-    {"CameraColor"                 ,ptGT_Choice       ,1,1,1 ,ptCameraColor_Adobe_Profile ,GuiOptions->CameraColor               ,tr("Transform camera RGB to working space RGB")},
+    {"CameraColor"                 ,ptGT_Choice       ,1,1,1 ,value(ptCameraColor::Adobe_Profile) ,GuiOptions->CameraColor               ,tr("Transform camera RGB to working space RGB")},
     {"CameraColorProfileIntent"    ,ptGT_Choice       ,1,1,1 ,INTENT_PERCEPTUAL           ,GuiOptions->CameraColorProfileIntent  ,tr("Intent of the profile")},
-    {"CameraColorGamma"            ,ptGT_Choice       ,1,1,1 ,ptCameraColorGamma_None     ,GuiOptions->CameraColorGamma          ,tr("Gamma that was applied before this profile")},
+    {"CameraColorGamma"            ,ptGT_Choice       ,1,1,1 ,value(ptCameraColorGamma::None)     ,GuiOptions->CameraColorGamma          ,tr("Gamma that was applied before this profile")},
     {"WorkColor"                   ,ptGT_Choice       ,1,1,1 ,ptSpace_sRGB_D65            ,GuiOptions->WorkColor                 ,tr("Working colorspace")},
     {"CMQuality"                   ,ptGT_Choice       ,1,1,0 ,ptCMQuality_FastSRGB        ,GuiOptions->CMQuality                 ,tr("Color management quality")},
     {"PreviewColorProfileIntent"   ,ptGT_Choice       ,1,0,1 ,INTENT_PERCEPTUAL           ,GuiOptions->PreviewColorProfileIntent ,tr("Intent of the profile")},
@@ -206,7 +206,6 @@ ptSettings::ptSettings(const short InitLevel, const QString Path) {
     {"WriteBackupSettings"        ,ptGT_Check ,1,0,0,tr("Backup settings") ,tr("Write backup settings during processing")},
     {"RunMode"                    ,ptGT_Check ,1,0,0,tr("manual")          ,tr("manual or automatic pipe")},
     {"UseThumbnail"               ,ptGT_Check ,1,1,0,tr("Use thumbnail")   ,tr("Use the embedded thumbnail of RAW images")},
-    {"MultiplierEnhance"          ,ptGT_Check ,1,1,0,tr("Intensify")       ,tr("Normalize lowest channel to 1")},
     {"ManualBlackPoint"           ,ptGT_Check ,2,1,0,tr("Manual BP")       ,tr("Manual black point setting enabled")},
     {"ManualWhitePoint"           ,ptGT_Check ,2,1,0,tr("Manual WP")       ,tr("Manual white point setting enabled")},
     {"EeciRefine"                 ,ptGT_Check ,2,1,0,tr("Eeci refinement") ,tr("Eeci refinement")},
@@ -950,11 +949,7 @@ void ptSettings::ToDcRaw(ptDcRaw* TheDcRaw) {
   // Input file name
 
   QString InputFileName = GetStringList("InputFileNameList")[0];
-  FREE(TheDcRaw->m_UserSetting_InputFileName);
-  TheDcRaw->m_UserSetting_InputFileName =
-    (char*) MALLOC(1+strlen(InputFileName.toLocal8Bit().data()));
-  ptMemoryError(TheDcRaw->m_UserSetting_InputFileName,__FILE__,__LINE__);
-  strcpy(TheDcRaw->m_UserSetting_InputFileName,InputFileName.toLocal8Bit().data());
+  TheDcRaw->m_UserSetting_InputFileName = InputFileName;
 
   // Detail view
   TheDcRaw->m_UserSetting_DetailView = Settings->GetInt("DetailViewActive");
@@ -991,149 +986,139 @@ void ptSettings::ToDcRaw(ptDcRaw* TheDcRaw) {
 
   // White balance settings.
   switch (GetInt("WhiteBalance")) {
-    case ptWhiteBalance_Camera :
-      TheDcRaw->m_UserSetting_CameraWb = 1;
-      TheDcRaw->m_UserSetting_AutoWb   = 0;
-      TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
-      TheDcRaw->m_UserSetting_GreyBox[0] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[1] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[2] = 0xFFFF;
-      TheDcRaw->m_UserSetting_GreyBox[3] = 0xFFFF;
-      break;
-    case ptWhiteBalance_Auto :
-      TheDcRaw->m_UserSetting_CameraWb = 0;
-      TheDcRaw->m_UserSetting_AutoWb   = 1;
-      TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
-      TheDcRaw->m_UserSetting_GreyBox[0] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[1] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[2] = 0xFFFF;
-      TheDcRaw->m_UserSetting_GreyBox[3] = 0xFFFF;
-      break;
-    case ptWhiteBalance_Spot :
-      TheDcRaw->m_UserSetting_CameraWb = 0;
-      TheDcRaw->m_UserSetting_AutoWb   = 1; // GreyBox must have auto on !
-      TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
-      TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
+  case ptWhiteBalance_Camera:
+    TheDcRaw->m_UserSetting_CameraWb = 1;
+    TheDcRaw->m_UserSetting_AutoWb = 0;
+    TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
+    TheDcRaw->m_UserSetting_UseGreyBox = false;
+    break;
+  case ptWhiteBalance_Auto:
+    TheDcRaw->m_UserSetting_CameraWb = 0;
+    TheDcRaw->m_UserSetting_AutoWb = 1;
+    TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
+    TheDcRaw->m_UserSetting_UseGreyBox = false;
+    break;
+  case ptWhiteBalance_Spot:
+    TheDcRaw->m_UserSetting_CameraWb = 0;
+    TheDcRaw->m_UserSetting_AutoWb = 1; // GreyBox must have auto on !
+    TheDcRaw->m_UserSetting_Multiplier[0] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[1] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[2] = 0.0;
+    TheDcRaw->m_UserSetting_Multiplier[3] = 0.0;
 
-      // The selection, which is in preview coordinates, must
-      // be transformed back to the original.
-      // Express always in size of original image !
-      // Also take into account TheDcRaw->m_Flip
+    // The selection, which is in preview coordinates, must
+    // be transformed back to the original.
+    // Express always in size of original image !
+    // Also take into account TheDcRaw->m_Flip
 
-      { // Jump to case label issue.
+    { // Jump to case label issue.
       int TmpPipeSize = GetInt("PipeSize");
-      uint16_t X = (1<<TmpPipeSize) * GetInt("VisualSelectionX");
-      uint16_t Y = (1<<TmpPipeSize) * GetInt("VisualSelectionY");
-      uint16_t W = (1<<TmpPipeSize) * GetInt("VisualSelectionWidth");
-      uint16_t H = (1<<TmpPipeSize) * GetInt("VisualSelectionHeight");
+      uint16_t X = (1 << TmpPipeSize) * GetInt("VisualSelectionX");
+      uint16_t Y = (1 << TmpPipeSize) * GetInt("VisualSelectionY");
+      uint16_t W = (1 << TmpPipeSize) * GetInt("VisualSelectionWidth");
+      uint16_t H = (1 << TmpPipeSize) * GetInt("VisualSelectionHeight");
 
       uint16_t TargetW = W;
       uint16_t TargetH = H;
       if (TheDcRaw->m_Flip & 4) {
-        SWAP(X,Y);
-        SWAP(TargetW,TargetH);
+        SWAP(X, Y);
+        SWAP(TargetW, TargetH);
       }
-      if (TheDcRaw->m_Flip & 2) Y = GetInt("ImageH")-1-Y-TargetH;
-      if (TheDcRaw->m_Flip & 1) X = GetInt("ImageW")-1-X-TargetW;
+      if (TheDcRaw->m_Flip & 2)
+        Y = GetInt("ImageH") - 1 - Y - TargetH;
+      if (TheDcRaw->m_Flip & 1)
+        X = GetInt("ImageW") - 1 - X - TargetW;
       TheDcRaw->m_UserSetting_GreyBox[0] = X;
       TheDcRaw->m_UserSetting_GreyBox[1] = Y;
       TheDcRaw->m_UserSetting_GreyBox[2] = TargetW;
       TheDcRaw->m_UserSetting_GreyBox[3] = TargetH;
-      }
+      TheDcRaw->m_UserSetting_UseGreyBox = true;
+    }
 
-      TRACEKEYVALS("GreyBox[0]","%d",TheDcRaw->m_UserSetting_GreyBox[0]);
-      TRACEKEYVALS("GreyBox[1]","%d",TheDcRaw->m_UserSetting_GreyBox[1]);
-      TRACEKEYVALS("GreyBox[2]","%d",TheDcRaw->m_UserSetting_GreyBox[2]);
-      TRACEKEYVALS("GreyBox[3]","%d",TheDcRaw->m_UserSetting_GreyBox[3]);
+    TRACEKEYVALS("GreyBox[0]", "%d", TheDcRaw->m_UserSetting_GreyBox[0]);
+    TRACEKEYVALS("GreyBox[1]", "%d", TheDcRaw->m_UserSetting_GreyBox[1]);
+    TRACEKEYVALS("GreyBox[2]", "%d", TheDcRaw->m_UserSetting_GreyBox[2]);
+    TRACEKEYVALS("GreyBox[3]", "%d", TheDcRaw->m_UserSetting_GreyBox[3]);
 
-      break;
-    default : // this entails as well manual as preset from ptWhiteBalances.
-      TheDcRaw->m_UserSetting_CameraWb = 0;
-      TheDcRaw->m_UserSetting_AutoWb   = 0;
-      TheDcRaw->m_UserSetting_Multiplier[0]= GetDouble("RMultiplier");
-      TheDcRaw->m_UserSetting_Multiplier[1]= GetDouble("GMultiplier");
-      TheDcRaw->m_UserSetting_Multiplier[2] =GetDouble("BMultiplier");
-      TheDcRaw->m_UserSetting_Multiplier[3] =
+    break;
+  default: // this entails as well manual as preset from ptWhiteBalances.
+    TheDcRaw->m_UserSetting_CameraWb = 0;
+    TheDcRaw->m_UserSetting_AutoWb = 0;
+    TheDcRaw->m_UserSetting_Multiplier[0] = GetDouble("RMultiplier");
+    TheDcRaw->m_UserSetting_Multiplier[1] = GetDouble("GMultiplier");
+    TheDcRaw->m_UserSetting_Multiplier[2] = GetDouble("BMultiplier");
+    TheDcRaw->m_UserSetting_Multiplier[3] =
         TheDcRaw->m_Colors == 4 ? GetDouble("GMultiplier") : 0.0;
-      TheDcRaw->m_UserSetting_GreyBox[0] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[1] = 0;
-      TheDcRaw->m_UserSetting_GreyBox[2] = 0xFFFF;
-      TheDcRaw->m_UserSetting_GreyBox[3] = 0xFFFF;
+    TheDcRaw->m_UserSetting_UseGreyBox = false;
   }
 
   // Bad pixels settings.
-  switch(GetInt("HaveBadPixels")) {
-    case 0 : // None
-      TheDcRaw->m_UserSetting_BadPixelsFileName = NULL;
-      break;
-    case 1 : // Load one : should not happen !
-      assert(0);
-      break;
-    case 2 :
-      FREE(TheDcRaw->m_UserSetting_BadPixelsFileName);
-      TheDcRaw->m_UserSetting_BadPixelsFileName = (char *)
-        MALLOC(1+
-             strlen(GetString("BadPixelsFileName").toLocal8Bit().data()));
-      ptMemoryError(TheDcRaw->m_UserSetting_BadPixelsFileName,
-                    __FILE__,__LINE__);
-      strcpy(TheDcRaw->m_UserSetting_BadPixelsFileName,
-             GetString("BadPixelsFileName").toLocal8Bit().data());
-      break;
-    default :
-      assert(0);
+  switch (GetInt("HaveBadPixels")) {
+  case 0: // None
+    TheDcRaw->m_UserSetting_BadPixelsFileName = NULL;
+    break;
+  case 1: // Load one : should not happen !
+    assert(0);
+    break;
+  case 2:
+    FREE(TheDcRaw->m_UserSetting_BadPixelsFileName);
+    TheDcRaw->m_UserSetting_BadPixelsFileName = (char *)MALLOC(
+        1 + strlen(GetString("BadPixelsFileName").toLocal8Bit().data()));
+    ptMemoryError(TheDcRaw->m_UserSetting_BadPixelsFileName, __FILE__,
+                  __LINE__);
+    strcpy(TheDcRaw->m_UserSetting_BadPixelsFileName,
+           GetString("BadPixelsFileName").toLocal8Bit().data());
+    break;
+  default:
+    assert(0);
   }
 
   // Dark frame settings.
-  switch(GetInt("HaveDarkFrame")) {
-    case 0 : // None
-      TheDcRaw->m_UserSetting_DarkFrameFileName = NULL;
-      break;
-    case 1 : // Load one : should not happen !
-      assert(0);
-      break;
-    case 2 :
-      FREE(TheDcRaw->m_UserSetting_DarkFrameFileName);
-      TheDcRaw->m_UserSetting_DarkFrameFileName = (char *)
-        MALLOC(1+
-             strlen(GetString("DarkFrameFileName").toLocal8Bit().data()));
-      ptMemoryError(TheDcRaw->m_UserSetting_DarkFrameFileName,
-                    __FILE__,__LINE__);
-      strcpy(TheDcRaw->m_UserSetting_DarkFrameFileName,
-             GetString("DarkFrameFileName").toLocal8Bit().data());
-      break;
-    default :
-      assert(0);
+  switch (GetInt("HaveDarkFrame")) {
+  case 0: // None
+    TheDcRaw->m_UserSetting_DarkFrameFileName = NULL;
+    break;
+  case 1: // Load one : should not happen !
+    assert(0);
+    break;
+  case 2:
+    FREE(TheDcRaw->m_UserSetting_DarkFrameFileName);
+    TheDcRaw->m_UserSetting_DarkFrameFileName = (char *)MALLOC(
+        1 + strlen(GetString("DarkFrameFileName").toLocal8Bit().data()));
+    ptMemoryError(TheDcRaw->m_UserSetting_DarkFrameFileName, __FILE__,
+                  __LINE__);
+    strcpy(TheDcRaw->m_UserSetting_DarkFrameFileName,
+           GetString("DarkFrameFileName").toLocal8Bit().data());
+    break;
+  default:
+    assert(0);
   }
 
   // Blackpoint settings.
   switch (GetInt("ManualBlackPoint")) {
-    case 0 : // Automatic.
-      TheDcRaw->m_UserSetting_BlackPoint = -1;
-      break;
-    default : // Manual set
-      TheDcRaw->m_UserSetting_BlackPoint = GetInt("BlackPoint");
-      break;
+  case 0: // Automatic.
+    TheDcRaw->m_UserSetting_BlackPoint = -1;
+    break;
+  default: // Manual set
+    TheDcRaw->m_UserSetting_BlackPoint = GetInt("BlackPoint");
+    break;
   }
 
   // Whitepoint settings.
   switch (GetInt("ManualWhitePoint")) {
-    case 0 : // Automatic.
-      TheDcRaw->m_UserSetting_Saturation = -1;
-      break;
-    default : // Manual set
-      TheDcRaw->m_UserSetting_Saturation = GetInt("WhitePoint");
-      break;
+  case 0: // Automatic.
+    TheDcRaw->m_UserSetting_Saturation = -1;
+    break;
+  default: // Manual set
+    TheDcRaw->m_UserSetting_Saturation = GetInt("WhitePoint");
+    break;
   }
-  // Normalization of Multipliers
-  TheDcRaw->m_UserSetting_MaxMultiplier = GetInt("MultiplierEnhance");
 
   // Interpolation passes.
   TheDcRaw->m_UserSetting_InterpolationPasses = GetInt("InterpolationPasses");
@@ -1144,8 +1129,8 @@ void ptSettings::ToDcRaw(ptDcRaw* TheDcRaw) {
   TheDcRaw->m_UserSetting_EeciRefine = GetInt("EeciRefine");
 
   // Clip factor
-  TheDcRaw->m_UserSetting_photivo_ClipMode       = GetInt("ClipMode");
-  TheDcRaw->m_UserSetting_photivo_ClipParameter  = GetInt("ClipParameter");
+  TheDcRaw->m_UserSetting_photivo_ClipMode = GetInt("ClipMode");
+  TheDcRaw->m_UserSetting_photivo_ClipParameter = GetInt("ClipParameter");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1223,8 +1208,8 @@ void ptSettings::FromDcRaw(ptDcRaw* TheDcRaw) {
   // (ie we have to normalize the exposure further in the flow.
   // TODO This is coming from ufraw. Seems fair, but no clue
   // what's the logic behind the calculation. Someone ?
-  if (strcmp(TheDcRaw->m_CameraMake, "Canon")==0 &&
-      strncmp(TheDcRaw->m_CameraModel, "EOS", 3)==0 ) {
+  if (TheDcRaw->m_CameraMake == "Canon" &&
+      TheDcRaw->m_CameraModel.startsWith("EOS")) {
     int Max = (int) VALUE(TheDcRaw->m_CameraMultipliers[0]);
     for (short c=1; c<TheDcRaw->m_Colors; c++) {
       if (VALUE(TheDcRaw->m_CameraMultipliers[c]) > Max) {

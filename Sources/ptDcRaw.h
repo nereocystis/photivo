@@ -42,6 +42,8 @@
 
 #include "ptDefines.h"
 
+#include <libraw/libraw_types.h>
+
 #include <QString>
 
 #define _USE_MATH_DEFINES
@@ -144,14 +146,21 @@ typedef unsigned long long UINT64;
 #define VALUE(x)    x
 #endif
 
+class ptRawWrapper;
+
 
 class ptDcRaw {
+  ptRawWrapper *m_rawProcessor;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // PUBLIC members
 //
 ////////////////////////////////////////////////////////////////////////////////
 public:
+  // internal data of libraw
+  libraw_data_t &imgdata;
+
   /*************************************************************************
   m_UserSetting_* :
 
@@ -218,10 +227,8 @@ public:
 
   // <x y width height> Average a grey box for white balance
   // This defines the area that will be used for the white balance.
-  uint16_t    m_UserSetting_GreyBox[4];
-
-  // Normalize multiplier to the lowest 1.0
-  short       m_UserSetting_MaxMultiplier;
+  bool        m_UserSetting_UseGreyBox;
+  unsigned    m_UserSetting_GreyBox[4]; // type like libraw
 
   // Specify your own raw white balance.  These  multipliers  can  be
   // cut and pasted from the output of dcraw -v.
@@ -231,7 +238,7 @@ public:
   short       m_UserSetting_CameraMatrix;
 
   // Filename to process.
-  char*       m_UserSetting_InputFileName;
+  QString     m_UserSetting_InputFileName;
 
   // Detail view
   short       m_UserSetting_DetailView;
@@ -287,7 +294,7 @@ public:
 
   // Identify the input file, the camera parameters etc.
   // See further for stuff that can be read afterwards.
-  short  Identify(const QString NewInputFile = "");
+  short  Identify(const QString &NewInputFile = "");
 
   // Do the raw processing up to the image available.
   short  RunDcRaw_Phase1(); //Load,bad pxs,darkframe.
@@ -296,7 +303,7 @@ public:
 
   // Member functions specifically for photivo or photivo adapted.
 
-  void  ptWaveletDenoise();
+  void  ptAdjustBlacks();
   void  ptScaleColors();
   void  ptMedianFilter();
   void  ptHotpixelReduction();
@@ -340,10 +347,8 @@ public:
   uint16_t    m_ReportedHeight;
 
   // Camera and photo identifications. Typically available after Identify().
-  char      m_CameraMake[64];
-  char      m_CameraModel[64];
-  char      m_CameraModelBis[64];
-  char      m_CameraAdobeIdentification[128]; // Name as in the adobe table.
+  QString   m_CameraMake;
+  QString   m_CameraModel;
   char      m_Artist[64];
   float     m_IsoSpeed;
   float     m_Shutter;
@@ -429,10 +434,7 @@ public:
   *************************************************************************/
   char      m_ColorDescriptor[5];
   short     m_ByteOrder;  // 0x4949 ("II") means little-endian.
-  FILE*     m_InputFile;
   FILE*     m_OutputFile;
-  char*     m_MetaData;
-  unsigned  m_ThumbMisc;
   char      m_Description[512];
   unsigned  m_ShotOrder;
   unsigned  m_Kodak_cbpp;
@@ -441,18 +443,15 @@ public:
   unsigned  m_Filters_AfterPhase2;
   unsigned  m_Filters_AfterPhase3;
   off_t     m_Data_Offset;
-  off_t     m_ThumbOffset;
   off_t     m_ProfileOffset;
-  unsigned  m_ThumbLength;
-  unsigned  m_MetaLength;
   unsigned  m_Tiff_NrIFDs;
   unsigned  m_Tiff_Samples;
   unsigned  m_Tiff_bps;
   unsigned  m_Tiff_Compress;
   unsigned  m_BlackLevel;
-  unsigned  m_CBlackLevel[8]; //TODO Mike
+  unsigned  m_CBlackLevel[4];
   unsigned  m_BlackLevel_AfterPhase1;
-  unsigned  m_CBlackLevel_AfterPhase1[8]; //TODO Mike
+  unsigned  m_CBlackLevel_AfterPhase1[4];
   unsigned  m_WhiteLevel;
   unsigned  m_WhiteLevel_AfterPhase1;
   unsigned  m_MixGreen;
@@ -481,10 +480,8 @@ public:
   float     m_cmatrix[3][4];
   float     m_MatrixCamRGBToSRGB[3][4];
   double    m_MatrixSRGBToCamRGB[4][3]; // addon photivo
-  void      (ptDcRaw::*m_WriteThumb)();
   void      (ptDcRaw::*m_WriteFunction)();
   void      (ptDcRaw::*m_LoadRawFunction)();
-  void      (ptDcRaw::*m_ThumbLoadRawFunction)();
 
   jmp_buf   m_Failure;
 
@@ -508,8 +505,6 @@ public:
   unsigned    m_getbithuff_bitbuf;
   int         m_getbithuff_reset;
   int         m_getbithuff_vbits;
-  uint64_t    m_ph1_bithuffbitbuf;
-  int         m_ph1_bithuffvbits;
   uint8_t     m_pana_bits_buf[0x4000];
   int         m_pana_bits_vbits;
   uint8_t     jpeg_buffer[4096];
@@ -525,39 +520,16 @@ public:
   short       ToLABFunctionInited;
   double      MatrixCamToXYZ[3][4];
 
-
-  struct decode {
-    struct decode *branch[2];
-    int leaf;
-  } first_decode[2048], *second_decode, *free_decode;
-
-  struct s_Tiff_IFD {
-    int width, height, bps, comp, phint, offset, flip, samples, bytes;
-    int tile_width, tile_length;
-  } m_Tiff_IFD[10];
-
-  struct s_ph1 {
-    int format, key_off, black, black_off, split_col, tag_21a;
-    float tag_210;
-  } ph1;
-
-
   /*************************************************************************
   Internally used member functions. Should be completely uninteresting
   for the user.
   Pseudo automatically generated.
   *************************************************************************/
 
-  void  tiff_head(struct tiff_hdr *th);
-  void  tiff_set(uint16_t *ntag,uint16_t tag,uint16_t type,int count,int val);
-  int   flip_index(int row,int col);
   void  stretch();
   void  fuji_rotate();
   void  identify();
-  short guess_byte_order(int words);
   float find_green (int bps, int bite, int off0, int off1);
-  void  simple_coeff(int index);
-  void  adobe_coeff(const char *make,const char *model);
   void  parse_foveon();
   void  parse_redcine();
   char *foveon_gets(int offset,char *str,int len);
@@ -583,7 +555,6 @@ public:
   void  get_timestamp(int reversed);
   void  parse_makernote(int base,int uptag);
   int   parse_tiff_ifd(int base);
-  void  parse_thumb_note(int base,unsigned toff,unsigned tlen);
   void  tiff_get(unsigned base,unsigned *tag,unsigned *type,unsigned *len,unsigned *save);
   void  ahd_interpolate();
   void  ppg_interpolate();
@@ -592,93 +563,16 @@ public:
   void  border_interpolate(int border);
   void  pre_interpolate();
   void  hat_transform(float *temp,float *base,int st,int size,int sc);
-  void  cam_xyz_coeff(double cam_xyz[4][3]);
   void  pseudoinverse(double(*in)[3],double(*out)[3],int size);
   void  gamma_curve (double pwr, double ts, int mode, int imax);
   void  subtract(const char *fname);
   void  bad_pixels(const char *fname);
-  void  foveon_interpolate();
-  int   foveon_apply_curve(short *curve,int i);
-  void  foveon_make_curves(short **curvep,float dq[3],float div[3],float filt);
-  short*foveon_make_curve(double max,double mul,double filt);
-  float foveon_avg(short *pix,int range[2],float cfilt);
-  int   foveon_fixed(void *ptr,int size,const char *name);
-  void* foveon_camf_matrix(unsigned dim[3],const char *name);
-  const char * foveon_camf_param(const char *block,const char *param);
-  void  foveon_load_raw();
-  void  foveon_load_camf();
-  void  foveon_thumb();
-  void  foveon_decoder(unsigned size,unsigned code);
-  void  foveon_huff (uint16_t *huff);
-  void  smal_v9_load_raw();
-  void  redcine_load_raw();
-  void  fill_holes(int holes);
-  int   median4(int *p);
-  void  smal_v6_load_raw();
-  void  smal_decode_segment(unsigned seg[2][2],int holes);
-  void  sony_arw2_load_raw();
-  void  sony_arw_load_raw();
-  void  sony_load_raw();
-  void  sony_decrypt(unsigned *data,int len,int start,int key);
-  void  kodak_thumb_load_raw();
-  void  kodak_rgb_load_raw();
-  void  kodak_ycbcr_load_raw();
-  void  kodak_65000_load_raw();
-  int   kodak_65000_decode(short *out,int bsize);
-  void  kodak_262_load_raw();
-  void  kodak_yrgb_load_raw();
-  void  eight_bit_load_raw();
-  void  kodak_dc120_load_raw();
-  void  kodak_jpeg_load_raw();
-  void  kodak_radc_load_raw();
-  int   radc_token(int tree);
-  uint16_t* make_decoder_ref(const uint8_t **source);
-  uint16_t* make_decoder(const uint8_t *source);
-  void  quicktake_100_load_raw();
-  void  casio_qv5700_load_raw();
-  void  minolta_rd175_load_raw();
-  void  olympus_cseries_load_raw();
-  void  olympus_load_raw();
-  void  panasonic_load_raw();
-  void  nokia_load_raw();
-  unsigned  pana_bits(int nbits);
-  void  packed_load_raw();
-  void  imacon_full_load_raw();
-  void  sinar_4shot_load_raw();
-  void  unpacked_load_raw();
-  void  leaf_hdr_load_raw();
-  void  hasselblad_load_raw();
-  void  phase_one_load_raw_c();
-  unsigned ph1_bithuff (int nbits, uint16_t *huff);
-  void  phase_one_load_raw();
-  void  phase_one_correct();
-  void  phase_one_flat_field(int is_float,int nc);
-  int   raw(unsigned row,unsigned col);
-  void  rollei_load_raw();
-  void  rollei_thumb();
-  void  layer_thumb();
-  void  ppm_thumb();
-  void  jpeg_thumb();
-  void  fuji_load_raw();
-  void  nikon_e2100_load_raw();
-  void  nikon_e900_load_raw();
-  int   minolta_z2();
-  void  nikon_3700();
-  int   nikon_e2100();
-  int   nikon_e995();
-  int   nikon_is_compressed();
-  void  nikon_load_raw();
-  void  nikon_compressed_load_raw();
-  void  pentax_load_raw();
-  void  adobe_dng_load_raw_nc();
-  void  adobe_dng_load_raw_lj();
-  void  adobe_copy_pixel(unsigned row, unsigned col, uint16_t **rp);
   void  canon_sraw_load_raw();
   void  lossless_jpeg_load_raw();
-  uint16_t * ljpeg_row(int jrow,struct jhead *jh);
-  void  ljpeg_end (struct jhead *jh);
+  uint16_t * ljpeg_row(int jrow,struct pt_jhead *jh);
+  void  ljpeg_end (struct pt_jhead *jh);
   int   ljpeg_diff (uint16_t *huff);
-  int   ljpeg_start(struct jhead *jh,int info_only);
+  int   ljpeg_start(struct pt_jhead *jh,int info_only);
   void  canon_compressed_load_raw();
   int   canon_has_lowbits();
   void  crw_init_tables(unsigned table,uint16_t *huff[2]);
@@ -699,7 +593,6 @@ public:
   void  lossless_dng_load_raw();
   void  lossy_dng_load_raw();
   void  packed_dng_load_raw();
-  void  ppm16_thumb();
   void  foveon_dp_load_raw();
   void  foveon_sd_load_raw();
   void  crop_masked_pixels();

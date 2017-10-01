@@ -148,11 +148,11 @@ const ptGuiOptionsItem ptGuiOptions::RememberSettingLevel[] = {
   {-1,NULL}};
 
 const ptGuiOptionsItem ptGuiOptions::CameraColor[] = {
-  {ptCameraColor_Flat,           QObject::tr("Flat Profile")},
-  {ptCameraColor_Adobe_Matrix,   QObject::tr("Adobe Matrix")},
-  {ptCameraColor_Adobe_Profile,  QObject::tr("Adobe Profile")},
-  //{ptCameraColor_Embedded,       QObject::tr("Embedded Profile")  },
-  {ptCameraColor_Profile,        QObject::tr("External Profile")  },
+  {value(ptCameraColor::Flat),           QObject::tr("Flat Profile")},
+  {value(ptCameraColor::Adobe_Matrix),   QObject::tr("Adobe Matrix")},
+  {value(ptCameraColor::Adobe_Profile),  QObject::tr("Adobe Profile")},
+  //{value(ptCameraColor::Embedded),       QObject::tr("Embedded Profile")  },
+  {value(ptCameraColor::Profile),        QObject::tr("External Profile")  },
   {-1,NULL}};
 
 const ptGuiOptionsItem ptGuiOptions::CameraColorProfileIntent[] = {
@@ -163,10 +163,10 @@ const ptGuiOptionsItem ptGuiOptions::CameraColorProfileIntent[] = {
   {-1,NULL}};
 
 const ptGuiOptionsItem ptGuiOptions::CameraColorGamma[] = {
-  {ptCameraColorGamma_None,            QObject::tr("None")            },
-  {ptCameraColorGamma_sRGB,            QObject::tr("sRGB")            },
-  {ptCameraColorGamma_BT709,           QObject::tr("BT709")           },
-  {ptCameraColorGamma_Pure22,          QObject::tr("Pure 2.2")        },
+  {value(ptCameraColorGamma::None),            QObject::tr("None")            },
+  {value(ptCameraColorGamma::sRGB),            QObject::tr("sRGB")            },
+  {value(ptCameraColorGamma::BT709),           QObject::tr("BT709")           },
+  {value(ptCameraColorGamma::Pure22),          QObject::tr("Pure 2.2")        },
   {-1,NULL}};
 
 const ptGuiOptionsItem ptGuiOptions::WorkColor[] = {

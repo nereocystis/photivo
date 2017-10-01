@@ -184,13 +184,21 @@ inline const T &ptBound(const T &min, const T &val, const T &max)
 #ifdef ENABLE_TRACE
 #define TRACEKEYVALS(x,y,z) {                                      \
   printf("(%-25s,%5d): ",__FILE__,__LINE__);                       \
-  printf("%-20s: ",x);                                              \
+  printf("%-20s: ",x);                                             \
   printf(y,z);                                                     \
+  printf("\n");                                                    \
+  fflush(stdout);                                                  \
+}
+#define TRACEKEYVALS_QT(x,y,z) {                                   \
+  printf("(%-25s,%5d): ",__FILE__,__LINE__);                       \
+  printf("%-20s: ",x);                                             \
+  printf(y,z.toLocal8Bit().constData());                           \
   printf("\n");                                                    \
   fflush(stdout);                                                  \
 }
 #else
 #define TRACEKEYVALS(x,y,z) ;
+#define TRACEKEYVALS_QT(x,y,z) ;
 #endif
 
 // TRACEMAIN does something comparably , but basically gives

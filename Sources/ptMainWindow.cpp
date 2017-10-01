@@ -1980,24 +1980,24 @@ void ptMainWindow::UpdateSettings() {
       ProcessingTabBook->setTabIcon(ProcessingTabBook->indexOf(m_ActiveTabs.at(j)),QIcon());
   }
 
-
   // New Camera Color Space or profile ?
-  int TmpCameraColor = Settings->GetInt("CameraColor");
-  if (TmpCameraColor == ptCameraColor_Adobe_Profile) {
-    Settings->SetEnabled("CameraColorProfileIntent",1);
-    Settings->SetEnabled("CameraColorGamma",0);
+  const auto TmpCameraColor =
+      enum_cast<ptCameraColor>(Settings->GetInt("CameraColor"));
+  switch (TmpCameraColor) {
+  case ptCameraColor::Adobe_Profile:
+    Settings->SetEnabled("CameraColorProfileIntent", 1);
+    Settings->SetEnabled("CameraColorGamma", 0);
     CameraColorProfileText->setEnabled(1);
-  } else if (TmpCameraColor == ptCameraColor_Profile) {
-    Settings->SetEnabled("CameraColorProfileIntent",1);
-    Settings->SetEnabled("CameraColorGamma",1);
+    break;
+  case ptCameraColor::Profile:
+  case ptCameraColor::Flat:
+    Settings->SetEnabled("CameraColorProfileIntent", 1);
+    Settings->SetEnabled("CameraColorGamma", 1);
     CameraColorProfileText->setEnabled(1);
-  } else if (TmpCameraColor == ptCameraColor_Flat) {
-    Settings->SetEnabled("CameraColorProfileIntent",1);
-    Settings->SetEnabled("CameraColorGamma",1);
-    CameraColorProfileText->setEnabled(1);
-  } else {
-    Settings->SetEnabled("CameraColorProfileIntent",0);
-    Settings->SetEnabled("CameraColorGamma",0);
+    break;
+  default:
+    Settings->SetEnabled("CameraColorProfileIntent", 0);
+    Settings->SetEnabled("CameraColorGamma", 0);
     CameraColorProfileText->setEnabled(0);
   }
 

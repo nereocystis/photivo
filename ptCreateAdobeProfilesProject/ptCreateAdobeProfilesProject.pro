@@ -37,6 +37,8 @@ TARGET    = ptCreateAdobeProfiles
 
 DESTDIR         = ..
 
+include(../common.pri)
+
 #prevent qmake from adding -arch flags
 macx{
   QMAKE_CFLAGS_X86_64 =-m64
@@ -72,7 +74,6 @@ win32 {
 }
 
 # Input
-HEADERS += ../Sources/ptAdobeTable.h
 SOURCES += ../Sources/ptCreateAdobeProfiles.cpp
 
 ###############################################################################

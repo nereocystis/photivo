@@ -2460,37 +2460,6 @@ void CalculateMultipliersFromTemperature() {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// Utility function : Normalize the Multipliers to largest 1.0
-// If Max is set, normalize to lowest 1.0
-//
-////////////////////////////////////////////////////////////////////////////////
-
-void NormalizeMultipliers(const short Max = 0) {
-  if (Max == 0) {
-    double Maximum = Settings->GetDouble("RMultiplier");
-    if (Settings->GetDouble("GMultiplier") > Maximum)
-      Maximum = Settings->GetDouble("GMultiplier");
-    if (Settings->GetDouble("BMultiplier") > Maximum)
-      Maximum = Settings->GetDouble("BMultiplier");
-    assert (Maximum > 0.0);
-    Settings->SetValue("RMultiplier",Settings->GetDouble("RMultiplier")/Maximum);
-    Settings->SetValue("GMultiplier",Settings->GetDouble("GMultiplier")/Maximum);
-    Settings->SetValue("BMultiplier",Settings->GetDouble("BMultiplier")/Maximum);
-  } else {
-    double Minimum = Settings->GetDouble("RMultiplier");
-    if (Settings->GetDouble("GMultiplier") < Minimum)
-      Minimum = Settings->GetDouble("GMultiplier");
-    if (Settings->GetDouble("BMultiplier") < Minimum)
-      Minimum = Settings->GetDouble("BMultiplier");
-    assert (Minimum > 0.0);
-    Settings->SetValue("RMultiplier",Settings->GetDouble("RMultiplier")/Minimum);
-    Settings->SetValue("GMultiplier",Settings->GetDouble("GMultiplier")/Minimum);
-    Settings->SetValue("BMultiplier",Settings->GetDouble("BMultiplier")/Minimum);
-  }
-}
-
 //==============================================================================
 // Handles the display of the pixel values
 void CB_PixelReader(const QPointF Point, const ptPixelReading PixelReading) {
@@ -3161,7 +3130,7 @@ void CB_NextImageButton() {
 void CB_CameraColorChoice(const QVariant Choice) {
   int PreviousChoice = Settings->GetInt("CameraColor");
   Settings->SetValue("CameraColor",Choice);
-  if (Choice.toInt() == ptCameraColor_Profile) {
+  if (Choice.toInt() == value(ptCameraColor::Profile)) {
     if (!Settings->GetString("CameraColorProfile").size()) {
       ptMessageBox::warning(MainWindow,
                            QObject::tr("Please load a profile first"),
@@ -3170,12 +3139,12 @@ void CB_CameraColorChoice(const QVariant Choice) {
     }
   }
 
-  if (Settings->GetInt("CameraColor") == ptCameraColor_Embedded) {
+  if (Settings->GetInt("CameraColor") == value(ptCameraColor::Embedded)) {
     // TODO
     ptMessageBox::warning(MainWindow,
                         QObject::tr("Not yet implemented"),
                         QObject::tr("Not yet implemented. Reverting to Adobe."));
-    Settings->SetValue("CameraColor",ptCameraColor_Adobe_Matrix);
+    Settings->SetValue("CameraColor",value(ptCameraColor::Adobe_Matrix));
   }
 
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Highlights);
@@ -3195,7 +3164,7 @@ void CB_CameraColorProfileButton() {
     QFileInfo PathInfo(ProfileFileName);
     Settings->SetValue("CameraColorProfilesDirectory",PathInfo.absolutePath());
     Settings->SetValue("CameraColorProfile",PathInfo.absoluteFilePath());
-    Settings->SetValue("CameraColor",ptCameraColor_Profile);
+    Settings->SetValue("CameraColor",value(ptCameraColor::Profile));
   }
 
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Highlights);
@@ -3846,7 +3815,6 @@ void CB_OpenSettingsFile(QString SettingsFileName) {
   if (NextPhase == 1) {
     if (Settings->GetInt("HaveImage")==1) {
       CalculateMultipliersFromTemperature();
-      NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
     }
     if (Settings->GetInt("AutomaticPipeSize") && Settings->ToolIsActive("TabResize")) {
       if (!CalculatePipeSize())
@@ -4037,7 +4005,6 @@ void CB_ColorTemperatureInput(const QVariant Value) {
   Settings->SetValue("WhiteBalance",ptWhiteBalance_Manual);
   if (!TheDcRaw) return;
   CalculateMultipliersFromTemperature();
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
 }
 
@@ -4046,36 +4013,24 @@ void CB_GreenIntensityInput(const QVariant Value) {
   Settings->SetValue("WhiteBalance",ptWhiteBalance_Manual);
   if (!TheDcRaw) return;
   CalculateMultipliersFromTemperature();
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
-  Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
-}
-
-void CB_MultiplierEnhanceCheck(const QVariant State) {
-  Settings->SetValue("MultiplierEnhance",State);
-  if (!TheDcRaw) return;
-  TheDcRaw->m_UserSetting_MaxMultiplier = Settings->GetInt("MultiplierEnhance");
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
 }
 
 void CB_RMultiplierInput(const QVariant Value) {
   Settings->SetValue("RMultiplier",Value);
   Settings->SetValue("WhiteBalance",ptWhiteBalance_Manual);
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
 }
 
 void CB_GMultiplierInput(const QVariant Value) {
   Settings->SetValue("GMultiplier",Value);
   Settings->SetValue("WhiteBalance",ptWhiteBalance_Manual);
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
 }
 
 void CB_BMultiplierInput(const QVariant Value) {
   Settings->SetValue("BMultiplier",Value);
   Settings->SetValue("WhiteBalance",ptWhiteBalance_Manual);
-  NormalizeMultipliers(Settings->GetInt("MultiplierEnhance"));
   Update(ptProcessorPhase_Raw,ptProcessorPhase_Demosaic);
 }
 
@@ -5186,7 +5141,6 @@ void CB_InputChanged(const QString ObjectName, const QVariant Value) {
   M_Dispatch(WhiteBalanceChoice)
   M_Dispatch(ColorTemperatureInput)
   M_Dispatch(GreenIntensityInput)
-  M_Dispatch(MultiplierEnhanceCheck)
   M_Dispatch(RMultiplierInput)
   M_Dispatch(GMultiplierInput)
   M_Dispatch(BMultiplierInput)
@@ -5410,11 +5364,7 @@ ptImageType CheckImageType(QString filename,
     filename = InputFileNameList[0];
 
   if (filename != InputFileNameList[0]) {
-    FREE(LocalDcRaw->m_UserSetting_InputFileName);
-    LocalDcRaw->m_UserSetting_InputFileName =
-      (char*) MALLOC(1+strlen(filename.toLocal8Bit().data()));
-    ptMemoryError(LocalDcRaw->m_UserSetting_InputFileName,__FILE__,__LINE__);
-    strcpy(LocalDcRaw->m_UserSetting_InputFileName,filename.toLocal8Bit().data());
+    LocalDcRaw->m_UserSetting_InputFileName = filename;
   }
 
   if (LocalDcRaw->Identify() == 0) {

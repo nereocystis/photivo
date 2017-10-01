@@ -21,114 +21,22 @@
 **
 *******************************************************************************/
 
+#include "ptColorProfiles.h"
+#include "ptConstants.h"
+
+#include <lcms2.h>
+#include <lcms2_plugin.h>
+
 #include <cstdio>
 #include <cctype>
 #include <cmath>
 #include <cassert>
 
-#include <lcms2.h>
-#include <lcms2_plugin.h>
-
-#include "ptConstants.h"
-
 void create_darktable_profiles();
-
-cmsHPROFILE MatrixToProfile(cmsMAT3 MatrixXYZToCam) {
-
-  cmsMAT3 MatrixCamToXYZ;
-  _cmsMAT3inverse(&MatrixXYZToCam, &MatrixCamToXYZ);
-
-  cmsCIEXYZ RedXYZ   = { X : MatrixCamToXYZ.v[0].n[0],
-                         Y : MatrixCamToXYZ.v[1].n[0],
-                         Z : MatrixCamToXYZ.v[2].n[0]};
-  cmsCIEXYZ GreenXYZ = { X : MatrixCamToXYZ.v[0].n[1],
-                         Y : MatrixCamToXYZ.v[1].n[1],
-                         Z : MatrixCamToXYZ.v[2].n[1]};
-  cmsCIEXYZ BlueXYZ  = { X : MatrixCamToXYZ.v[0].n[2],
-                         Y : MatrixCamToXYZ.v[1].n[2],
-                         Z : MatrixCamToXYZ.v[2].n[2]};
-
-  cmsCIExyY RedxyY;
-  cmsCIExyY GreenxyY;
-  cmsCIExyY BluexyY;
-
-  cmsXYZ2xyY(&RedxyY,&RedXYZ);
-  cmsXYZ2xyY(&GreenxyY,&GreenXYZ);
-  cmsXYZ2xyY(&BluexyY,&BlueXYZ);
-
-  cmsCIExyYTRIPLE Primaries = {Red : RedxyY, Green : GreenxyY, Blue : BluexyY};
-
-  //double gamma  = 0.45;
-  //double linear = 0.10;
-  //double g = gamma*(1.0-linear)/(1.0-linear*gamma);
-  //double a = 1.0/(1.0+linear*(g-1.0));
-  //double b = linear*(g-1.0)*a;
-  //double c = pow(a*linear+b,g)/linear;
-  //double Params[] = {g,a,b,c,linear};
-  // Gamma => None (=1)
-  cmsToneCurve* Gamma = cmsBuildGamma(NULL, 1.0);
-  cmsToneCurve* Gamma3[3];
-  Gamma3[0] = Gamma3[1] = Gamma3[2] = Gamma;
-
-  cmsHPROFILE Profile = cmsCreateRGBProfile(cmsD50_xyY(),&Primaries,Gamma3);
-  cmsFreeToneCurve(Gamma);
-
-  return Profile;
-}
-
-#include "ptAdobeTable.h"
 
 int main() {
 
   cmsMAT3 MatrixXYZToCam;
-
-  for (int i=0; i < (int) sizeof AdobeTable / (int) sizeof *AdobeTable; i++){
-
-    printf("%s\n",AdobeTable[i].Identification);
-
-    // Might be impacting, but not sure yet how. TODO FIXME
-    bool HaveBlackpointProblem = 0;
-    if (AdobeTable[i].Blackpoint) {
-      printf("Check me. Have blackpoint. '%s'\n",AdobeTable[i].Identification);
-      HaveBlackpointProblem = 1;
-    }
-
-    for (short j = 0; j < 3; j++) {
-      for (short k = 0; k < 3; k++) {
-        MatrixXYZToCam.v[j].n[k] = AdobeTable[i].XYZToCam[j*3 + k] /10000.0;
-      }
-    }
-
-
-    bool HaveFourColorProblem = 0;
-    for (short j = 9; j < 12; j++) {
-      if (AdobeTable[i].XYZToCam[j] != 0) {
-        HaveFourColorProblem = 1;
-        break;
-      }
-    }
-
-    if (HaveFourColorProblem) {
-      printf("Check me. Have 4 color. '%s'\n",AdobeTable[i].Identification);
-    }
-
-    cmsHPROFILE Profile = MatrixToProfile(MatrixXYZToCam);
-    cmsSetDeviceClass(Profile,cmsSigInputClass);
-    cmsSetColorSpace(Profile,cmsSigRgbData);
-    cmsSetPCS(Profile,cmsSigXYZData);
-    char OutputFileName[1024];
-    snprintf(OutputFileName,1023,"Profiles/Camera/Standard/%s.icc",
-             AdobeTable[i].Identification);
-    for (unsigned i=0;i<strlen(OutputFileName);i++) {
-      if (isspace(OutputFileName[i])) OutputFileName[i]='_';
-      // Windows has issue with '*'
-      if (OutputFileName[i]=='*') OutputFileName[i]='_';
-    }
-
-    cmsSaveProfileToFile(Profile,OutputFileName);
-
-    cmsCloseProfile(Profile);
-  }
 
   printf("%s\n","Flat Profile");
 
@@ -138,7 +46,7 @@ int main() {
     }
   }
 
-  cmsHPROFILE Profile = MatrixToProfile(MatrixXYZToCam);
+  cmsHPROFILE Profile = pt::MatrixToProfile(MatrixXYZToCam);
   cmsSetDeviceClass(Profile,cmsSigInputClass);
   cmsSetColorSpace(Profile,cmsSigRgbData);
   cmsSetPCS(Profile,cmsSigXYZData);

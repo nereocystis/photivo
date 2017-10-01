@@ -57,6 +57,18 @@ const ptFiles PhotivoFile = { "photivo.ini",
 
 //==============================================================================
 
+template <typename E>
+constexpr typename std::underlying_type<E>::type value(E e) noexcept {
+    return static_cast<typename std::underlying_type<E>::type>(e);
+}
+
+template <typename E, typename T>
+constexpr E enum_cast(const T &value) noexcept {
+    return static_cast<E>(value);
+}
+
+//==============================================================================
+
 // Mathematical constants.
 const double ptPI     = 3.14159265358979323846264338327950288419716939937510;
 const double ptSQ2PI  = 2.50662827463100024161235523934010416269302368164062;
@@ -136,16 +148,20 @@ const short ptSpace_Profiled         = 20;
 
 // Color profiles.
 
-const short ptCameraColor_Flat              = 0;
-const short ptCameraColor_Adobe_Matrix      = 1;
-const short ptCameraColor_Adobe_Profile     = 2;
-const short ptCameraColor_Embedded          = 3;
-const short ptCameraColor_Profile           = 4;
+enum class ptCameraColor : uint8_t {
+  Flat          = 0,
+  Adobe_Matrix  = 1,
+  Adobe_Profile = 2,
+  Embedded      = 3,
+  Profile       = 4
+};
 
-const short ptCameraColorGamma_None     = 0;
-const short ptCameraColorGamma_sRGB     = 1;
-const short ptCameraColorGamma_BT709    = 2;
-const short ptCameraColorGamma_Pure22   = 3;
+enum class ptCameraColorGamma : uint8_t {
+  None = 0,
+  sRGB = 1,
+  BT709 = 2,
+  Pure22 = 3
+};
 
 const short ptScreenColor_Profile    = 20;/* Avoid collision with RGB or LAB */
 const short ptOutputColor_Profile    = 21;/* Avoid collision with RGB or LAB */
