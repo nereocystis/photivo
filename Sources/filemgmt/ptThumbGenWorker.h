@@ -25,8 +25,6 @@
 
 #include "ptThumbDefines.h"
 
-#include <wand/magick_wand.h>
-
 #include <QObject>
 #include <QSize>
 #include <QMutex>
@@ -61,7 +59,6 @@ private:
   TThumbPtr generateThumb(const TThumbId& AThumbId);
   QSize scaleSize(int AWidth, int AHeight, int AMaxLongEdge);
   void setIsRunning(bool AValue);
-  void transformImage(MagickWand* AInImage, ptImage8* AOutImage, const QSize& ASize);
 
   // Access to following bool variables MUST ALWAYS be protected via their respective mutexes.
   // Use ptMutexLocker for easy locking/unlocking. Do NOT use QMutexLocker.

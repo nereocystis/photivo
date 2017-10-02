@@ -34,7 +34,10 @@
 #pragma GCC diagnostic pop
 #include <wand/magick_wand.h>
 
-#include <vector>
+#include <exiv2/exif.hpp>
+#include <exiv2/iptc.hpp>
+#include <exiv2/xmp.hpp>
+
 #include <QStringList>
 
 //==============================================================================

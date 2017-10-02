@@ -26,8 +26,13 @@
 #include "../ptImage8.h"
 #include "../ptDcRaw.h"
 #include "../ptInfo.h"
+
+#include <wand/magick_wand.h>
+
 #include <QApplication>
 #include <QImage>
+
+void transformImage(MagickWand* AInImage, ptImage8* AOutImage, const QSize& ASize);
 
 //------------------------------------------------------------------------------
 /*!
@@ -175,7 +180,7 @@ TThumbPtr ptThumbGenWorker::generateThumb(const TThumbId& AThumbId) {
       hThumbnail->FromQImage(QImage(QString::fromUtf8(":/dark/icons/broken-image-48px.png")));
     } else {
       // no error: scale and rotate thumbnail
-      this->transformImage(hGMImage, hThumbnail.get(), hSize);
+      transformImage(hGMImage, hThumbnail.get(), hSize);
     }
 
     DestroyMagickWand(hGMImage);
@@ -208,7 +213,7 @@ QSize ptThumbGenWorker::scaleSize(int AWidth, int AHeight, int AMaxLongEdge) {
 
 //------------------------------------------------------------------------------
 // Rotates and scales an image. To avoid scaling set width and height of ASize to <=0.
-void ptThumbGenWorker::transformImage(MagickWand* AInImage, ptImage8* AOutImage, const QSize& ASize) {
+void transformImage(MagickWand* AInImage, ptImage8* AOutImage, const QSize& ASize) {
   // We want 8bit RGB data without alpha channel, scaled to thumbnail size
   MagickSetImageDepth(AInImage, 8);
   MagickSetImageFormat(AInImage, "RGB");

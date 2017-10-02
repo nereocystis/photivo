@@ -25,12 +25,10 @@
 
 //==============================================================================
 
-#include <exiv2/exif.hpp>
-
 #include <QString>
-#include <QImage>
-#include <exiv2/iptc.hpp>
-#include <exiv2/xmp.hpp>
+
+#include <vector>
+#include <cstdint>
 
 //==============================================================================
 
@@ -43,6 +41,14 @@
   */
 
 //==============================================================================
+
+namespace Exiv2 {
+class ExifData;
+class IptcData;
+class XmpData;
+} // namespace Exiv2
+
+class QImage;
 
 class ptImageHelper
 {

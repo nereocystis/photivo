@@ -1261,17 +1261,17 @@ ptImage* ptImage::Set(const ptDcRaw           *DcRawObject,
     switch (ProfileType) {
     case ptCameraColor::Adobe_Matrix:
       assert(0); // we are in a profile branch
+    case ptCameraColor::Embedded:
+      assert(0);
+    case ptCameraColor::Flat:
+      Profiles.push_back(pt::createFlatProfile());
+      break;
     case ptCameraColor::Adobe_Profile:
       if (!addProfile(
               pt::createAdobeProfile(DcRawObject->imgdata.color.cam_xyz),
               "Could not create Adobe profile!")) {
         return NULL;
       }
-      break;
-    case ptCameraColor::Embedded:
-      assert(0);
-    case ptCameraColor::Flat:
-      Profiles.push_back(pt::createFlatProfile());
       break;
     case ptCameraColor::Profile:
       Q_ASSERT(!ProfileName.isEmpty());

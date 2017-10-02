@@ -29,8 +29,6 @@
 #include "ptTagModel.h"
 #include "ptThumbGenMgr.h"
 
-#include <wand/magick_wand.h>
-
 #include <QObject>
 #include <QPixmap>
 #include <QFileSystemModel>
