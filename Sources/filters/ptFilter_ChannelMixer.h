@@ -33,7 +33,7 @@ public:
   static ptFilterBase *createChannelMixer();
 
 protected:
-  QWidget  *doCreateGui();
+  QWidget  *doCreateGui() override;
 
   void      doDefineControls() override;
   bool      doCheckHasActiveCfg() override;

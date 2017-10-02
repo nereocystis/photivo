@@ -130,11 +130,12 @@ public:
   using QListView::setModel;
 
 protected:
-  virtual void dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
+  void dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight,
+                   const QVector<int> &roles = QVector<int>()) override;
 
 protected slots:
   /*! Qt event triggered when the focused spot in the list changes. */
-  void currentChanged(const QModelIndex &current, const QModelIndex &previous);
+  void currentChanged(const QModelIndex &current, const QModelIndex &previous) override;
 
 private:
   ptImageSpotModel *FModel;

@@ -114,11 +114,16 @@ void ptFilter_ChannelMixer::doRunFilter(ptImage *AImage) {
 // -----------------------------------------------------------------------------
 
 TChannelMatrix ptFilter_ChannelMixer::configToMatrix() const {
-  return TChannelMatrix {{
-    {FConfig.value(CRed2Red).toFloat(),   FConfig.value(CGreen2Red).toFloat(),   FConfig.value(CBlue2Red).toFloat()},
-    {FConfig.value(CRed2Green).toFloat(), FConfig.value(CGreen2Green).toFloat(), FConfig.value(CBlue2Green).toFloat()},
-    {FConfig.value(CRed2Blue).toFloat(),  FConfig.value(CGreen2Blue).toFloat(),  FConfig.value(CBlue2Blue).toFloat()}
-  }};
+  return TChannelMatrix{
+      {{{FConfig.value(CRed2Red).toFloat(),
+         FConfig.value(CGreen2Red).toFloat(),
+         FConfig.value(CBlue2Red).toFloat()}},
+       {{FConfig.value(CRed2Green).toFloat(),
+         FConfig.value(CGreen2Green).toFloat(),
+         FConfig.value(CBlue2Green).toFloat()}},
+       {{FConfig.value(CRed2Blue).toFloat(),
+         FConfig.value(CGreen2Blue).toFloat(),
+         FConfig.value(CBlue2Blue).toFloat()}}}};
 }
 
 //------------------------------------------------------------------------------

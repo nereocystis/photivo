@@ -38,6 +38,8 @@
 #include "ptColorProfiles.h"
 #include "fastbilateral/fast_lbf.h"
 
+#include <tools/clamp.h>
+
 #include <QString>
 #include <QTime>
 
@@ -2750,51 +2752,55 @@ ptImage* ptImage::ColorBoost(const double ValueA,
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-ptImage* ptImage::LumaAdjust(const double LC1, // 8 colors for L
-                          const double LC2,
-                          const double LC3,
-                          const double LC4,
-                          const double LC5,
-                          const double LC6,
-                          const double LC7,
-                            const double LC8)
-{
-  assert (m_ColorSpace == ptSpace_Lab);
+ptImage *ptImage::LumaAdjust(const double LC1, const double LC2,
+                             const double LC3, const double LC4,
+                             const double LC5, const double LC6,
+                             const double LC7, const double LC8) {
+  assert(m_ColorSpace == ptSpace_Lab);
   float WPH = 0x7fff;
-  float IQPI = 4/ptPI;
+  float IQPI = 4 / ptPI;
 
 #pragma omp parallel for schedule(static)
-  for(uint32_t i = 0; i < (uint32_t) m_Width*m_Height; i++) {
-    float Col = powf(((float)m_Image[i][1]-WPH)*((float)m_Image[i][1]-WPH) +
-          ((float)m_Image[i][2]-WPH)*((float)m_Image[i][2]-WPH), 0.25);
+  for (uint32_t i = 0; i < size(); i++) {
+    float Col =
+        powf(((float)m_Image[i][1] - WPH) * ((float)m_Image[i][1] - WPH) +
+                 ((float)m_Image[i][2] - WPH) * ((float)m_Image[i][2] - WPH),
+             0.25);
     Col /= 0xb5; // normalizing to 0..1, sqrt(0x7fff)
     float Hue = 0;
     if (m_Image[i][1] == WPH && m_Image[i][2] == WPH) {
-      Hue = 0;   // value for grey pixel
+      Hue = 0; // value for grey pixel
     } else {
-      Hue = atan2f((float)m_Image[i][2]-WPH,
-      (float)m_Image[i][1]-WPH);
+      Hue = atan2f((float)m_Image[i][2] - WPH, (float)m_Image[i][1] - WPH);
     }
-    while (Hue < 0) Hue += 2.*ptPI;
+    while (Hue < 0)
+      Hue += 2. * ptPI;
 
-    if ( LC1 != 0 && Hue > -.1 && Hue < ptPI/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-0)*IQPI)*LC1*Col)));
-    if ( LC2 != 0 && Hue > 0 && Hue < ptPI/2)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI/4)*IQPI)*LC2*Col)));
-    if ( LC3 != 0 && Hue > ptPI/4 && Hue < ptPI*3/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI/2)*IQPI)*LC3*Col)));
-    if ( LC4 != 0 && Hue > ptPI/2 && Hue < ptPI)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI*3/4)*IQPI)*LC4*Col)));
-    if ( LC5 != 0 && Hue > ptPI*3/4 && Hue < ptPI*5/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI)*IQPI)*LC5*Col)));
-    if ( LC6 != 0 && Hue > ptPI && Hue < ptPI*6/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI*5/4)*IQPI)*LC6*Col)));
-    if ( LC7 != 0 && Hue > ptPI*5/4 && Hue < ptPI*7/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI*6/4)*IQPI)*LC7*Col)));
-    if ( LC8 != 0 && Hue > ptPI*6/4 && Hue < ptPI*8/4)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI*7/4)*IQPI)*LC8*Col)));
-    if ( LC1 != 0 && Hue > ptPI*7/4 && Hue < ptPI*2.1)
-      m_Image[i][0] = CLIP((int32_t)(m_Image[i][0] * powf(2,(1.-fabsf(Hue-ptPI*2)*IQPI)*LC1*Col)));
+    auto adjust = [=](uint16_t &value, const double quadrant,
+                      const double offset) {
+      value = clamp16(value *
+                      powf(2, (1. - std::abs(Hue - ptPI * quadrant) * IQPI) *
+                                  offset * Col));
+    };
+
+    if (LC1 != 0 && Hue > -.1 && Hue < ptPI / 4)
+      adjust(m_Image[i][0], 0, LC1);
+    if (LC2 != 0 && Hue > 0 && Hue < ptPI / 2)
+      adjust(m_Image[i][0], 1 / 4., LC2);
+    if (LC3 != 0 && Hue > ptPI / 4 && Hue < ptPI * 3 / 4)
+      adjust(m_Image[i][0], 2 / 4., LC3);
+    if (LC4 != 0 && Hue > ptPI / 2 && Hue < ptPI)
+      adjust(m_Image[i][0], 3 / 4., LC4);
+    if (LC5 != 0 && Hue > ptPI * 3 / 4 && Hue < ptPI * 5 / 4)
+      adjust(m_Image[i][0], 4 / 4., LC5);
+    if (LC6 != 0 && Hue > ptPI && Hue < ptPI * 6 / 4)
+      adjust(m_Image[i][0], 5 / 4., LC6);
+    if (LC7 != 0 && Hue > ptPI * 5 / 4 && Hue < ptPI * 7 / 4)
+      adjust(m_Image[i][0], 6 / 4., LC7);
+    if (LC8 != 0 && Hue > ptPI * 6 / 4 && Hue < ptPI * 8 / 4)
+      adjust(m_Image[i][0], 7 / 4., LC8);
+    if (LC1 != 0 && Hue > ptPI * 7 / 4 && Hue < ptPI * 2.1)
+      adjust(m_Image[i][0], 8 / 4., LC1);
   }
 
   return this;
@@ -2802,79 +2808,57 @@ ptImage* ptImage::LumaAdjust(const double LC1, // 8 colors for L
 
 //==============================================================================
 
-ptImage* ptImage::SatAdjust(const double SC1, // 8 colors for saturation
-                            const double SC2,
-                            const double SC3,
-                            const double SC4,
-                            const double SC5,
-                            const double SC6,
-                            const double SC7,
-                            const double SC8)
-{
-  assert (m_ColorSpace == ptSpace_Lab);
+ptImage *ptImage::SatAdjust(const double SC1, const double SC2,
+                            const double SC3, const double SC4,
+                            const double SC5, const double SC6,
+                            const double SC7, const double SC8) {
+  assert(m_ColorSpace == ptSpace_Lab);
   float WPH = 0x7fff;
-  float IQPI = 4/ptPI;
+  float IQPI = 4 / ptPI;
 
 #pragma omp parallel for schedule(static)
-  for(uint32_t i = 0; i < (uint32_t) m_Width*m_Height; i++) {
-    float Col = powf(((float)m_Image[i][1]-WPH)*((float)m_Image[i][1]-WPH) +
-          ((float)m_Image[i][2]-WPH)*((float)m_Image[i][2]-WPH), 0.25);
+  for (uint32_t i = 0; i < (uint32_t)m_Width * m_Height; i++) {
+    float Col =
+        powf(((float)m_Image[i][1] - WPH) * ((float)m_Image[i][1] - WPH) +
+                 ((float)m_Image[i][2] - WPH) * ((float)m_Image[i][2] - WPH),
+             0.25);
     Col /= 0xb5; // normalizing to 0..1, sqrt(0x7fff)
     float Hue = 0;
     if (m_Image[i][1] == WPH && m_Image[i][2] == WPH) {
-      Hue = 0;   // value for grey pixel
+      Hue = 0; // value for grey pixel
     } else {
-      Hue = atan2f((float)m_Image[i][2]-WPH,
-      (float)m_Image[i][1]-WPH);
+      Hue = atan2f((float)m_Image[i][2] - WPH, (float)m_Image[i][1] - WPH);
     }
-    while (Hue < 0) Hue += 2.*ptPI;
+    while (Hue < 0)
+      Hue += 2. * ptPI;
 
-    float m = 0;
-    if ( SC1 != 0 && Hue > -.1 && Hue < ptPI/4) {
-      m = powf(8,(1.-fabsf(Hue-0)*IQPI)*SC1*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC2 != 0 && Hue > 0 && Hue < ptPI/2) {
-      m = powf(8,(1.-fabsf(Hue-ptPI/4)*IQPI)*SC2*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC3 != 0 && Hue > ptPI/4 && Hue < ptPI*3/4) {
-      m = powf(8,(1.-fabsf(Hue-ptPI/2)*IQPI)*SC3*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC4 != 0 && Hue > ptPI/2 && Hue < ptPI) {
-      m = powf(8,(1.-fabsf(Hue-ptPI*3/4)*IQPI)*SC4*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC5 != 0 && Hue > ptPI*3/4 && Hue < ptPI*5/4) {
-      m = powf(8,(1.-fabsf(Hue-ptPI)*IQPI)*SC5*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC6 != 0 && Hue > ptPI && Hue < ptPI*6/4) {
-      m = powf(8,(1.-fabsf(Hue-ptPI*5/4)*IQPI)*SC6*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC7 != 0 && Hue > ptPI*5/4 && Hue < ptPI*7/4) {
-      m = powf(8,(1.-fabsf(Hue-ptPI*6/4)*IQPI)*SC7*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC8 != 0 && Hue > ptPI*6/4 && Hue < ptPI*8/4) {
-      m = powf(8,(1.-fabsf(Hue-ptPI*7/4)*IQPI)*SC8*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
-    if ( SC1 != 0 && Hue > ptPI*7/4 && Hue < ptPI*2.1) {
-      m = powf(8,(1.-fabsf(Hue-ptPI*2)*IQPI)*SC1*Col);
-      m_Image[i][1] = CLIP((int32_t)(m_Image[i][1] * m + WPH * (1. - m)));
-      m_Image[i][2] = CLIP((int32_t)(m_Image[i][2] * m + WPH * (1. - m)));
-    }
+    auto adjust = [=](uint16_t &value_a, uint16_t &value_b,
+                      const double quadrant, const double offset) {
+      const float m =
+          powf(8, (1. - std::abs(Hue - ptPI * quadrant) * IQPI) * offset * Col);
+      const float t = WPH * (1. - m);
+      value_a = clamp16(value_a * m + t);
+      value_b = clamp16(value_b * m + t);
+    };
+
+    if (SC1 != 0 && Hue > -.1 && Hue < ptPI / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 0, SC1);
+    if (SC2 != 0 && Hue > 0 && Hue < ptPI / 2)
+      adjust(m_Image[i][1], m_Image[i][2], 1 / 4., SC2);
+    if (SC3 != 0 && Hue > ptPI / 4 && Hue < ptPI * 3 / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 2 / 4., SC3);
+    if (SC4 != 0 && Hue > ptPI / 2 && Hue < ptPI)
+      adjust(m_Image[i][1], m_Image[i][2], 3 / 4., SC4);
+    if (SC5 != 0 && Hue > ptPI * 3 / 4 && Hue < ptPI * 5 / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 4 / 4., SC5);
+    if (SC6 != 0 && Hue > ptPI && Hue < ptPI * 6 / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 5 / 4., SC6);
+    if (SC7 != 0 && Hue > ptPI * 5 / 4 && Hue < ptPI * 7 / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 6 / 4., SC7);
+    if (SC8 != 0 && Hue > ptPI * 6 / 4 && Hue < ptPI * 8 / 4)
+      adjust(m_Image[i][1], m_Image[i][2], 7 / 4., SC8);
+    if (SC1 != 0 && Hue > ptPI * 7 / 4 && Hue < ptPI * 2.1)
+      adjust(m_Image[i][1], m_Image[i][2], 8 / 4., SC1);
   }
 
   return this;

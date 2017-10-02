@@ -525,12 +525,21 @@ ptImage* ptImage::dirpyrLab_denoise(const int luma, const int chroma, const doub
 
   //set up range functions
 #pragma omp parallel for
-  for (int32_t i=0; i<0x20000; i++) {
-    rangefn_L[i] = (uint16_t)(( exp(-(float)fabs(i-0x10000) * tonefactor / (1+3*noise_L)) * noisevar_L/((float)(i-0x10000)*(float)(i-0x10000) + noisevar_L))*intfactor);
-    rangefn_ab[i] = (uint16_t)(( exp(-(float)fabs(i-0x10000) * tonefactor / (1+3*noise_ab)) * noisevar_ab/((float)(i-0x10000)*(float)(i-0x10000) + noisevar_ab))*intfactor);
-    nrwt_ab[i] = ((1+abs(i-0x10000)/(1+8*noise_ab)) * exp(-(float)fabs(i-0x10000)/ (1+8*noise_ab) ) );
+  for (int32_t i = 0; i < 0x20000; i++) {
+    const float offset = i - 0x10000;
+    const float offset_abs = std::abs(offset);
+    const float offset_sq = offset * offset;
+    rangefn_L[i] =
+        (uint16_t)((exp(-offset_abs * tonefactor / (1 + 3 * noise_L)) *
+                    noisevar_L / (offset_sq + noisevar_L)) *
+                   intfactor);
+    rangefn_ab[i] =
+        (uint16_t)((exp(-offset_abs * tonefactor / (1 + 3 * noise_ab)) *
+                    noisevar_ab / (offset_sq + noisevar_ab)) *
+                   intfactor);
+    nrwt_ab[i] = ((1 + offset_abs / (1 + 8 * noise_ab)) *
+                  exp(-offset_abs / (1 + 8 * noise_ab)));
   }
-
 
   //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

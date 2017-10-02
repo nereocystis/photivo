@@ -303,8 +303,10 @@ void ptSpotListView::setModel(ptImageSpotModel *AModel) {
 
 //==============================================================================
 
-void ptSpotListView::dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight) {
-  QListView::dataChanged(topLeft, bottomRight);
+void ptSpotListView::dataChanged(const QModelIndex &topLeft,
+                                 const QModelIndex &bottomRight,
+                                 const QVector<int> &roles) {
+  QListView::dataChanged(topLeft, bottomRight, roles);
   if (FModel->lastChangedRole() == Qt::CheckStateRole) {
     emit activeSpotsChanged();
   }
