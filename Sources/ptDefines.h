@@ -135,6 +135,11 @@ inline const T &ptBound(const T &min, const T &val, const T &max)
 #define ULIM(x, y, z)     ((y) < (z) ? LIM(x,y,z) : LIM(x,z,y))
 #define CLIP(x)           ptBound(0, x, 0xffff)
 
+template <typename T>
+inline const uint16_t clamp16(const T &value) {
+    return ptBound(0, static_cast<int32_t>(value), 0xffff);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Following 'functions' are macro implemented for :

@@ -38,8 +38,6 @@
 #include "ptColorProfiles.h"
 #include "fastbilateral/fast_lbf.h"
 
-#include <tools/clamp.h>
-
 #include <QString>
 #include <QTime>
 
